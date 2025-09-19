@@ -1,0 +1,62 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: shieldhub-backend
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: devhyxuk@gmail.com  # 발송용 Gmail 계정
+    password: khqz gjln wmgc gggl      # Gmail 앱 비밀번호
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+  # 이메일 설정
+  app:
+    mail:
+      from: noreply@shieldhub.com
+      from-name: ShieldHub Security
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/shieldhub_db
+    username: shieldhub_user
+    password: 1234
+
+  jpa:
+    hibernate:
+      ddl-auto: validate  # 테이블은 이미 생성됨
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+logging:
+  level:
+    com.shieldhub.backend: DEBUG
+    org.springframework.security: DEBUG
+
+
+app:
+  jwt:
+    secret: your-256-bit-secret-key-change-this-in-production-very-important
+    expiration: 86400000  # 24시간 (밀리초)
+
+  encryption:
+    master-key: your-256-bit-secret-key-change-this-in-production-very-important
+
+  file:
+    upload-dir: ./data/files/encrypted/uploads

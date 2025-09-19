@@ -1,0 +1,85 @@
+# Java/Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# NetBeans
+nbproject/
+build/
+nbbuild/
+dist/
+nbdist/
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Application logs
+*.log
+logs/
+
+# Database data (Docker volumes)
+data/
+mysql_data/
+
+# Encrypted files storage
+data/files/encrypted/
+data/files/temp/
+
+# Environment files with sensitive data
+application-local.yml
+application-prod.yml
+.env
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Build files
+*.so
+*.dylib
+*.dll
+
+# Package Files
+*.dmg
+*.pkg
+*.deb
+*.rpm
+
+# Spring Boot
+HELP.md
+spring-shell.log
