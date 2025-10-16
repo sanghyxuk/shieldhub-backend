@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.shieldhub.backend.dto.request.FindIdRequest;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -48,6 +50,31 @@ public class AuthService {
         user.setIsOtpEnabled(false);
 
         return userRepository.save(user);
+    }
+
+    // 아이디(username) 찾기
+    @Transactional(readOnly = true) // 데이터를 변경하지 않으므로 readOnly 속성 추가
+    public String findUsername(FindIdRequest request) {
+        // 이메일과 전화번호 둘 다 없는 경우 예외 처리
+        if (request.getEmail() == null && request.getPhoneNumber() == null) {
+            throw new RuntimeException("이메일 또는 전화번호를 입력해주세요.");
+        }
+
+        Optional<User> userOptional;
+
+        // 이메일이 존재하면 이메일로 사용자 조회
+        if (request.getEmail() != null && !request.getEmail().isEmpty()) {
+            userOptional = userRepository.findByEmail(request.getEmail());
+        }
+        // 이메일이 없고 전화번호가 존재하면 전화번호로 조회
+        else {
+            userOptional = userRepository.findByPhoneNumber(request.getPhoneNumber());
+        }
+
+        // 사용자를 찾았으면 username 반환, 없으면 예외 처리
+        return userOptional
+                .map(User::getUsername)
+                .orElseThrow(() -> new RuntimeException("해당 정보로 가입된 사용자를 찾을 수 없습니다."));
     }
 
     // 로그인

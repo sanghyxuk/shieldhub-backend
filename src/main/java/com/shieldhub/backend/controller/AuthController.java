@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
+import com.shieldhub.backend.dto.request.FindIdRequest;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +36,26 @@ public class AuthController {
             response.put("message", "회원가입이 완료되었습니다");
             response.put("userId", user.getUserId());
             response.put("username", user.getUsername());
+
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    // 아이디(username) 찾기
+    @PostMapping("/find-id")
+    public ResponseEntity<?> findId(@RequestBody FindIdRequest request) {
+        try {
+            String username = authService.findUsername(request);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("username", username);
 
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
