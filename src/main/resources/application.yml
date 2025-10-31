@@ -68,3 +68,7 @@ app:
 
   file:
     upload-dir: ./data/files/encrypted/uploads
+
+  # Flask AI 서버 주소
+  flask:
+    server-url: http://127.0.0.1:5001

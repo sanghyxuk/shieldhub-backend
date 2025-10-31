@@ -37,6 +37,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/otp/**").authenticated()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/files/**").authenticated()
+                        .requestMatchers("/api/analysis/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
