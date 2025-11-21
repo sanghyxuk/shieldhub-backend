@@ -9,8 +9,8 @@ spring:
   # [메일 설정] Brevo SMTP (587 포트 + STARTTLS)
   mail:
     host: smtp-relay.brevo.com
-    port: 2525
-    username: pyosang0919@gmail.com
+    port: 2525                     # 아까 뚫렸던 2525번 포트 유지!
+    username: 9c3595001@smtp-brevo.com  # [수정] 사진에 있는 'Login' 값 복사
     password: ${MAIL_PASSWORD}
     properties:
       mail:
