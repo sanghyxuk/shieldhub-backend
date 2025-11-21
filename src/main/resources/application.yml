@@ -6,45 +6,32 @@ spring:
   application:
     name: shieldhub-backend
 
-  spring:
-    mail:
-      host: smtp-relay.brevo.com    # [변경] Gmail -> Brevo
-      port: 587                     # 587 포트 사용
-      username: pyosang0919@gmail.com
-      password: ${MAIL_PASSWORD}
-      properties:
-        mail:
-          smtp:
-            auth: true
-            starttls:
-              enable: true
-              required: true
-            connectiontimeout: 10000
-            timeout: 10000
-            writetimeout: 10000
+  # [메일 설정] Brevo SMTP (587 포트 + STARTTLS)
+  mail:
+    host: smtp-relay.brevo.com
+    port: 587
+    username: pyosang0919@gmail.com
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          # 타임아웃 10초 (Brevo는 응답이 빠르므로 10초면 충분)
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
-  # CORS 설정
-  web:
-    cors:
-      allowed-origins: "http://localhost:3000, https://frontend-chi-lake-23.vercel.app"
-      allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
-      allowed-headers: "*"
-      allow-credentials: true
-      max-age: 3600
-
-  # 이메일 발신자 설정
-  app:
-    mail:
-      from: noreply@shieldhub.com
-      from-name: ShieldHub Security
-
+  # [DB 설정] Render 환경 변수 사용 / 로컬은 localhost
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    # 배포: Render 환경변수 DB_URL 사용 / 로컬: localhost 사용
     url: ${DB_URL:jdbc:mysql://localhost:3306/shieldhub_db}
     username: ${DB_USERNAME:shieldhub_user}
     password: ${DB_PASSWORD:1234}
 
+  # [JPA 설정]
   jpa:
     hibernate:
       ddl-auto: update
@@ -56,20 +43,36 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
+  # [CORS 설정] Vercel 프론트엔드 주소 허용
+  web:
+    cors:
+      allowed-origins: "http://localhost:3000, https://frontend-chi-lake-23.vercel.app"
+      allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+      max-age: 3600
+
+# [로깅 설정] 디버깅용
 logging:
   level:
     com.shieldhub.backend: DEBUG
     org.springframework.security: DEBUG
 
+# [커스텀 설정] JWT, 암호화, 파일 경로 등
 app:
+  mail:
+    from: noreply@shieldhub.com
+    from-name: ShieldHub Security
+
   jwt:
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-very-important}
-    expiration: 86400000
+    expiration: 86400000 # 24시간
 
   encryption:
     master-key: ${ENCRYPTION_MASTER_KEY:your-256-bit-secret-key-change-this-in-production-very-important}
 
   file:
+    # 주의: Render 무료 버전은 재배포 시 파일이 초기화됨
     upload-dir: ./data/files/encrypted/uploads
 
   flask:
