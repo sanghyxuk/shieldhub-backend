@@ -6,25 +6,22 @@ spring:
   application:
     name: shieldhub-backend
 
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: devhyxuk@gmail.com
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        debug: true
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          ssl:
-            enable: false
-            trust: smtp.gmail.com
-          connectiontimeout: 30000
-          timeout: 30000
-          writetimeout: 30000
+  spring:
+    mail:
+      host: smtp-relay.brevo.com    # [변경] Gmail -> Brevo
+      port: 587                     # 587 포트 사용
+      username: pyosang0919@gmail.com
+      password: ${MAIL_PASSWORD}
+      properties:
+        mail:
+          smtp:
+            auth: true
+            starttls:
+              enable: true
+              required: true
+            connectiontimeout: 10000
+            timeout: 10000
+            writetimeout: 10000
 
   # CORS 설정
   web:
