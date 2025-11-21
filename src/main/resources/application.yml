@@ -8,20 +8,20 @@ spring:
 
   mail:
     host: smtp.gmail.com
-    port: 587
+    port: 465
     username: devhyxuk@gmail.com
-    # 보안: 환경변수 MAIL_PASSWORD가 없으면 기존 값 사용
-    password: ${MAIL_PASSWORD:khqz gjln wmgc gggl}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
           auth: true
+          ssl:
+            enable: true       # SSL 활성화
+            trust: smtp.gmail.com
           starttls:
-            enable: true
-            required: true
+            enable: false      # SSL 사용 시 starttls는 끔
           connectiontimeout: 5000
           timeout: 5000
-          writetimeout: 5000
 
   # CORS 설정 (여기를 수정했습니다!)
   web:
