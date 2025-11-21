@@ -9,7 +9,7 @@ spring:
   # [메일 설정] Brevo SMTP (587 포트 + STARTTLS)
   mail:
     host: smtp-relay.brevo.com
-    port: 587
+    port: 2525
     username: pyosang0919@gmail.com
     password: ${MAIL_PASSWORD}
     properties:
