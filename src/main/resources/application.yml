@@ -23,11 +23,11 @@ spring:
           timeout: 5000
           writetimeout: 5000
 
-  # CORS 설정
+  # CORS 설정 (여기를 수정했습니다!)
   web:
     cors:
-      # 배포된 프론트엔드 주소가 생기면 환경변수 FRONTEND_URL에 등록
-      allowed-origins: "${FRONTEND_URL:http://localhost:3000}, https://shieldhub-frontend.onrender.com"
+      # 로컬 개발 주소와 실제 배포된 Vercel 주소를 콤마(,)로 구분해 직접 명시
+      allowed-origins: "http://localhost:3000, https://frontend-chi-lake-23.vercel.app"
       allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
       allowed-headers: "*"
       allow-credentials: true
