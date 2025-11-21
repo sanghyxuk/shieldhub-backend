@@ -85,7 +85,7 @@ public class AnalysisService {
     }
 
     @Transactional
-    private void saveFlaskResults(AnalysisResults analysisRecord, FlaskAnalysisResponse flaskResponse) {
+    protected void saveFlaskResults(AnalysisResults analysisRecord, FlaskAnalysisResponse flaskResponse) {
         // 1. Vulnerabilities 테이블에 취약점 정보 저장 (중복 확인)
         for (FlaskAnalysisResponse.VulnerabilityDetail detail : flaskResponse.getVulnerabilities()) {
 
@@ -97,7 +97,15 @@ public class AnalysisService {
                         Vulnerabilities newVuln = new Vulnerabilities();
                         newVuln.setVulnerabilityType(detail.getType());
                         newVuln.setDetectedPattern(detail.getPattern());
-                        newVuln.setSeverity(Vulnerabilities.Severity.valueOf(detail.getSeverity())); // Enum 변환
+
+                        // Enum 변환 (대소문자 무시, 예외 처리 추가)
+                        try {
+                            newVuln.setSeverity(Vulnerabilities.Severity.valueOf(detail.getSeverity().toUpperCase()));
+                        } catch (IllegalArgumentException e) {
+                            log.warn("알 수 없는 Severity 값: {}. 기본값 HIGH 사용", detail.getSeverity());
+                            newVuln.setSeverity(Vulnerabilities.Severity.HIGH); // 기본값
+                        }
+
                         newVuln.setDetails(detail.getDetails()); // 상세 설명
                         return vulnerabilitiesRepository.save(newVuln);
                     });

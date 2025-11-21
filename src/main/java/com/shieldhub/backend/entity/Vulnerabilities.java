@@ -31,6 +31,6 @@ public class Vulnerabilities {
     private String detectedPattern;
 
     public enum Severity {
-        HIGH, MEDIUM, LOW
+        CRITICAL, HIGH, MEDIUM, LOW
     }
 }
