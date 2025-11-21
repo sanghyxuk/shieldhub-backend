@@ -6,11 +6,11 @@ spring:
   application:
     name: shieldhub-backend
 
-  # [메일 설정] Brevo SMTP (587 포트 + STARTTLS)
+  # [메일 설정] Brevo SMTP (2525 포트)
   mail:
     host: smtp-relay.brevo.com
-    port: 2525                     # 아까 뚫렸던 2525번 포트 유지!
-    username: 9c3595001@smtp-brevo.com  # [수정] 사진에 있는 'Login' 값 복사
+    port: 2525                     # 2525번 포트 유지
+    username: 9c3595001@smtp-brevo.com  # Brevo 아이디 (수정 완료)
     password: ${MAIL_PASSWORD}
     properties:
       mail:
@@ -19,12 +19,13 @@ spring:
           starttls:
             enable: true
             required: true
-          # 타임아웃 10초 (Brevo는 응답이 빠르므로 10초면 충분)
           connectiontimeout: 10000
           timeout: 10000
           writetimeout: 10000
 
-  # [DB 설정] Render 환경 변수 사용 / 로컬은 localhost
+  # [주의] 여기에 app: 설정을 넣으면 안 됩니다! (삭제함)
+
+  # [DB 설정]
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/shieldhub_db}
@@ -43,7 +44,7 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
-  # [CORS 설정] Vercel 프론트엔드 주소 허용
+  # [CORS 설정]
   web:
     cors:
       allowed-origins: "http://localhost:3000, https://frontend-chi-lake-23.vercel.app"
@@ -52,27 +53,26 @@ spring:
       allow-credentials: true
       max-age: 3600
 
-# [로깅 설정] 디버깅용
 logging:
   level:
     com.shieldhub.backend: DEBUG
     org.springframework.security: DEBUG
 
-# [커스텀 설정] JWT, 암호화, 파일 경로 등
+# [커스텀 설정] ★ 여기가 진짜입니다! ★
 app:
   mail:
-    from: noreply@shieldhub.com
+    # [수정 완료] Brevo 가입 이메일(Gmail)로 변경됨
+    from: pyosang0919@gmail.com
     from-name: ShieldHub Security
 
   jwt:
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-very-important}
-    expiration: 86400000 # 24시간
+    expiration: 86400000
 
   encryption:
     master-key: ${ENCRYPTION_MASTER_KEY:your-256-bit-secret-key-change-this-in-production-very-important}
 
   file:
-    # 주의: Render 무료 버전은 재배포 시 파일이 초기화됨
     upload-dir: ./data/files/encrypted/uploads
 
   flask:
