@@ -1,21 +1,20 @@
-# 1. Build Stage
-FROM gradle:8.5-jdk17 AS build
+# 1. Build Stage (Maven 이미지 사용)
+FROM maven:3.8.5-openjdk-17 AS build
 WORKDIR /app
 
-# 소스 코드 복사
+# 소스 코드 전체 복사
 COPY . .
 
-# [디버깅 1] 파일이 제대로 복사되었는지 확인 (로그에 파일 목록이 찍힘)
-RUN echo "=== 파일 목록 확인 ===" && ls -al && echo "===================="
+# [Maven 빌드 명령어]
+# pom.xml을 읽어서 빌드하고, 테스트는 건너뜁니다(-DskipTests)
+RUN mvn clean package -DskipTests
 
-# [디버깅 2] build.gradle이 있는지 확인하고, 상세 에러 로그를 출력하며 빌드
-# --stacktrace 옵션이 진짜 에러 원인을 알려줍니다.
-RUN gradle clean build -x test --no-daemon --stacktrace
-
-# 2. Run Stage
+# 2. Run Stage (실행 환경)
 FROM eclipse-temurin:17-jdk-alpine
 WORKDIR /app
-COPY --from=build /app/build/libs/*.jar app.jar
+
+# [중요] Maven은 결과물이 'target' 폴더에 생깁니다. (Gradle은 build/libs)
+COPY --from=build /app/target/*.jar app.jar
 
 ENV PORT=8080
 EXPOSE 8080
