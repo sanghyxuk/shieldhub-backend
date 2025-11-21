@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  # Render가 할당하는 포트(PORT)를 사용하고, 없으면 8080 사용
+  port: ${PORT:8080}
 
 spring:
   application:
@@ -8,8 +9,9 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: devhyxuk@gmail.com  # 발송용 Gmail 계정
-    password: khqz gjln wmgc gggl      # Gmail 앱 비밀번호
+    username: devhyxuk@gmail.com
+    # 보안: 환경변수 MAIL_PASSWORD가 없으면 기존 값 사용
+    password: ${MAIL_PASSWORD:khqz gjln wmgc gggl}
     properties:
       mail:
         smtp:
@@ -20,16 +22,18 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
-  #CORS 설정
+
+  # CORS 설정
   web:
     cors:
-      allowed-origins: "http://localhost:3000"
+      # 배포된 프론트엔드 주소가 생기면 환경변수 FRONTEND_URL에 등록
+      allowed-origins: "${FRONTEND_URL:http://localhost:3000}, https://shieldhub-frontend.onrender.com"
       allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
       allowed-headers: "*"
       allow-credentials: true
       max-age: 3600
 
-  # 이메일 설정
+  # 이메일 발신자 설정
   app:
     mail:
       from: noreply@shieldhub.com
@@ -37,13 +41,15 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/shieldhub_db
-    username: shieldhub_user
-    password: 1234
+    # 배포: Render 환경변수 DB_URL 사용 / 로컬: localhost 사용
+    url: ${DB_URL:jdbc:mysql://localhost:3306/shieldhub_db}
+    username: ${DB_USERNAME:shieldhub_user}
+    password: ${DB_PASSWORD:1234}
 
   jpa:
     hibernate:
-      ddl-auto: validate  # 테이블은 이미 생성됨
+      # 초기에는 update로 설정하여 엔티티와 DB 싱크를 맞추는 것 추천
+      ddl-auto: update
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: true
@@ -57,18 +63,21 @@ logging:
     com.shieldhub.backend: DEBUG
     org.springframework.security: DEBUG
 
-
 app:
   jwt:
-    secret: your-256-bit-secret-key-change-this-in-production-very-important
-    expiration: 86400000  # 24시간 (밀리초)
+    # 보안: 환경변수 JWT_SECRET 사용
+    secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-very-important}
+    expiration: 86400000
 
   encryption:
-    master-key: your-256-bit-secret-key-change-this-in-production-very-important
+    # 보안: 환경변수 ENCRYPTION_KEY 사용
+    master-key: ${ENCRYPTION_MASTER_KEY:your-256-bit-secret-key-change-this-in-production-very-important}
 
   file:
+    # 주의: Render 무료 버전은 재배포 시 이 경로의 파일이 초기화됩니다.
     upload-dir: ./data/files/encrypted/uploads
 
   # Flask AI 서버 주소
   flask:
-    server-url: http://127.0.0.1:5001
+    # 배포: Render 환경변수 FLASK_API_URL 사용 / 로컬: 127.0.0.1 사용
+    server-url: ${FLASK_API_URL:http://127.0.0.1:5001}
