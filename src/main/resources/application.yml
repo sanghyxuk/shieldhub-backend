@@ -8,19 +8,20 @@ spring:
 
   mail:
     host: smtp.gmail.com
-    port: 465
+    port: 587
     username: devhyxuk@gmail.com
     password: ${MAIL_PASSWORD}
     properties:
       mail:
+        debug: true
         smtp:
           auth: true
-          ssl:
-            enable: true       # SSL 활성화 (465 포트용)
-            trust: smtp.gmail.com
           starttls:
-            enable: false      # SSL 사용 시 starttls는 꺼야 함
-          # [중요 수정] 5000 -> 30000 (30초)로 늘림
+            enable: true
+            required: true
+          ssl:
+            enable: false
+            trust: smtp.gmail.com
           connectiontimeout: 30000
           timeout: 30000
           writetimeout: 30000
