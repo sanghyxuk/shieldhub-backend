@@ -16,17 +16,18 @@ spring:
         smtp:
           auth: true
           ssl:
-            enable: true       # SSL 활성화
+            enable: true       # SSL 활성화 (465 포트용)
             trust: smtp.gmail.com
           starttls:
-            enable: false      # SSL 사용 시 starttls는 끔
-          connectiontimeout: 5000
-          timeout: 5000
+            enable: false      # SSL 사용 시 starttls는 꺼야 함
+          # [중요 수정] 5000 -> 30000 (30초)로 늘림
+          connectiontimeout: 30000
+          timeout: 30000
+          writetimeout: 30000
 
-  # CORS 설정 (여기를 수정했습니다!)
+  # CORS 설정
   web:
     cors:
-      # 로컬 개발 주소와 실제 배포된 Vercel 주소를 콤마(,)로 구분해 직접 명시
       allowed-origins: "http://localhost:3000, https://frontend-chi-lake-23.vercel.app"
       allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
       allowed-headers: "*"
@@ -48,7 +49,6 @@ spring:
 
   jpa:
     hibernate:
-      # 초기에는 update로 설정하여 엔티티와 DB 싱크를 맞추는 것 추천
       ddl-auto: update
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
@@ -65,19 +65,14 @@ logging:
 
 app:
   jwt:
-    # 보안: 환경변수 JWT_SECRET 사용
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-very-important}
     expiration: 86400000
 
   encryption:
-    # 보안: 환경변수 ENCRYPTION_KEY 사용
     master-key: ${ENCRYPTION_MASTER_KEY:your-256-bit-secret-key-change-this-in-production-very-important}
 
   file:
-    # 주의: Render 무료 버전은 재배포 시 이 경로의 파일이 초기화됩니다.
     upload-dir: ./data/files/encrypted/uploads
 
-  # Flask AI 서버 주소
   flask:
-    # 배포: Render 환경변수 FLASK_API_URL 사용 / 로컬: 127.0.0.1 사용
     server-url: ${FLASK_API_URL:http://127.0.0.1:5001}
