@@ -31,13 +31,12 @@ public class FileController {
     private final FileMetadataRepository fileMetadataRepository;
     private final UserRepository userRepository;
 
-    // 1. 파일 업로드 및 암호화 (스테가노그래피 적용)
+    // 1. 파일 업로드 및 암호화
     @PostMapping("/encrypt")
     public ResponseEntity<?> encryptFile(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
         try {
-            // 현재 로그인한 사용자 정보
             String username = authentication.getName();
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
@@ -48,10 +47,9 @@ public class FileController {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ZipOutputStream zos = new ZipOutputStream(baos);
 
-            // 1. 암호화된 파일(이미지) 추가
-            // [수정됨] 서비스에서 이미지를 반환하므로 .enc를 붙이지 않고 파일명 그대로 사용 (.png)
+            // 1. 암호화된 파일 추가 (.enc)
             byte[] encryptedFileBytes = (byte[]) result.get("encryptedFile");
-            String fileName = (String) result.get("fileName"); // 예: "UUID.png"
+            String fileName = (String) result.get("fileName"); // "UUID.enc"
 
             ZipEntry fileEntry = new ZipEntry(fileName);
             zos.putNextEntry(fileEntry);
@@ -72,7 +70,7 @@ public class FileController {
                     "File Information\n" +
                             "================\n" +
                             "Original File: %s\n" +
-                            "Saved Image: %s\n" +  // 저장된 이미지 파일명 표시
+                            "Encrypted File: %s\n" +
                             "File ID: %s\n" +
                             "SHA-256 Hash: %s\n" +
                             "Upload Date: %s\n",
@@ -109,17 +107,14 @@ public class FileController {
         }
     }
 
-    // 2. 파일 복호화 (파일 업로드 방식)
+    // 2. 파일 복호화 (업로드 방식)
     @PostMapping("/decrypt-upload")
     public ResponseEntity<?> decryptUploadedFile(
-            @RequestParam("encryptedFile") MultipartFile encryptedFile, // 클라이언트는 이미지를 업로드함
+            @RequestParam("encryptedFile") MultipartFile encryptedFile, // .enc 파일
             @RequestParam("keyFile") MultipartFile keyFile,
             @RequestParam("originalFileName") String originalFileName,
             Authentication authentication) {
         try {
-            // 인증된 사용자 확인
-            String username = authentication.getName();
-
             // key.txt 파일에서 키 추출
             String keyContent = new String(keyFile.getBytes(), StandardCharsets.UTF_8);
             String encryptedKey = keyContent.lines()
@@ -127,7 +122,7 @@ public class FileController {
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("키 파일 형식이 올바르지 않습니다"));
 
-            // 복호화 (이미지 바이트와 키 전달)
+            // 복호화
             Map<String, Object> result = fileEncryptionService.decryptUploadedFile(
                     encryptedFile.getBytes(),
                     encryptedKey.trim()
@@ -151,21 +146,19 @@ public class FileController {
         }
     }
 
-    // 3. 파일 복호화 (DB 저장 방식)
+    // 3. 파일 복호화 (DB 저장 방식) - 기존과 동일, 그대로 두셔도 됩니다.
     @PostMapping("/decrypt/{fileId}")
     public ResponseEntity<?> decryptFile(
             @PathVariable Integer fileId,
             @RequestBody Map<String, String> request,
             Authentication authentication) {
         try {
-            // 현재 로그인한 사용자 정보
             String username = authentication.getName();
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
 
             String encryptedKey = request.get("encryptedKey");
 
-            // 파일 소유권 확인
             FileMetadata metadata = fileMetadataRepository.findById(fileId)
                     .orElseThrow(() -> new RuntimeException("파일을 찾을 수 없습니다"));
 
@@ -176,7 +169,7 @@ public class FileController {
             Map<String, Object> result = fileEncryptionService.decryptFile(fileId, encryptedKey);
 
             byte[] fileData = (byte[]) result.get("fileData");
-            String fileName = (String) result.get("fileName"); // 원본 파일명
+            String fileName = (String) result.get("fileName");
 
             ByteArrayResource resource = new ByteArrayResource(fileData);
 
@@ -195,11 +188,10 @@ public class FileController {
         }
     }
 
-    // 4. 사용자의 파일 목록 조회
+    // 4. 목록 조회 - 기존과 동일
     @GetMapping("/list")
     public ResponseEntity<?> getFileList(Authentication authentication) {
         try {
-            // 현재 로그인한 사용자의 파일만 조회
             String username = authentication.getName();
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
