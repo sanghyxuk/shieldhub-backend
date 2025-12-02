@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.crypto.SecretKey;
-import java.io.File;
+import java.io.InputStream; // [중요] File 대신 InputStream 사용
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,8 +33,8 @@ public class FileEncryptionService {
     private final FileMetadataRepository fileMetadataRepository;
     private final FileHistoryRepository fileHistoryRepository;
     private final EncryptionUtil encryptionUtil;
-    private final ChaosKeyGenerator chaosKeyGenerator; // 카오스 키 생성기
-    private final SteganographyUtil steganographyUtil; // 스테가노그래피 유틸
+    private final ChaosKeyGenerator chaosKeyGenerator;
+    private final SteganographyUtil steganographyUtil;
 
     @Value("${app.file.upload-dir}")
     private String uploadDir;
@@ -48,33 +48,27 @@ public class FileEncryptionService {
         String sha256Hash = encryptionUtil.generateSHA256(fileData);
 
         // 3. 카오스 이론(로지스틱 맵)을 적용한 키 생성 [Chaos Logic]
-        // 시드: 원본파일명 + 사용자ID + 나노초 (예측 불가능성 극대화)
+        // 시드: 원본파일명 + 사용자ID + 나노초
         String seedData = file.getOriginalFilename() + userId + System.nanoTime();
         SecretKey fileKey = chaosKeyGenerator.generateChaosKey(seedData);
 
         // 4. 파일 암호화 (AES-256 GCM)
         byte[] encryptedBytes = encryptionUtil.encryptFile(fileData, fileKey);
 
-        // 5. [스테가노그래피] 랜덤 커버 이미지 선택 로직 [Random Logic]
-        // cover_1.png ~ cover_5.png 중 하나를 무작위로 선택
+        // 5. [스테가노그래피] 랜덤 커버 이미지 선택 로직 (배포 환경 호환 수정)
         int randomNum = (int) (Math.random() * 5) + 1;
         String coverImageName = "static/images/cover_" + randomNum + ".png";
 
-        File coverImage;
-        try {
-            coverImage = new ClassPathResource(coverImageName).getFile();
-            log.info("Selected Cover Image: {}", coverImageName);
-        } catch (Exception e) {
-            log.warn("Random cover image not found, falling back to cover_1.png");
-            // 파일이 없거나 오류 발생 시 기본 이미지 사용 (안전장치)
-            coverImage = new ClassPathResource("static/images/cover_1.png").getFile();
+        byte[] stegoImageBytes;
+
+        // [중요] try-with-resources 구문을 사용하여 InputStream 자동 닫기
+        // getFile()은 JAR 배포 시 에러가 나므로 getInputStream() 사용
+        try (InputStream coverImageStream = getCoverImageStream(coverImageName)) {
+            // 6. 이미지 속에 암호화된 데이터 숨기기
+            stegoImageBytes = steganographyUtil.embedData(coverImageStream, encryptedBytes);
         }
 
-        // 6. 이미지 속에 암호화된 데이터 숨기기
-        byte[] stegoImageBytes = steganographyUtil.embedData(coverImage, encryptedBytes);
-
         // 7. 암호화된 이미지 저장 (.enc 대신 .png로 저장)
-        // 사용자는 겉보기에 평범한 이미지를 다운로드하게 됨
         String uniqueFileName = UUID.randomUUID().toString() + ".png";
         Path filePath = Paths.get(uploadDir, uniqueFileName);
 
@@ -106,14 +100,29 @@ public class FileEncryptionService {
         // 11. 응답 데이터 구성
         Map<String, Object> response = new HashMap<>();
         response.put("fileId", savedMetadata.getFileId());
-        response.put("fileName", uniqueFileName); // 저장된 이미지 이름
+        response.put("fileName", uniqueFileName);
         response.put("encryptedKey", encryptedKey);
-        // 프론트엔드로 전달되는 데이터는 '숨겨진 데이터가 있는 이미지' 입니다.
+        // 프론트엔드로 전달되는 데이터는 '숨겨진 데이터가 있는 이미지'
         response.put("encryptedFile", stegoImageBytes);
         response.put("sha256Hash", sha256Hash);
         response.put("fileSize", savedMetadata.getFileSize());
 
         return response;
+    }
+
+    // [Helper] 커버 이미지 스트림 가져오기 (오류 시 기본 이미지 반환)
+    private InputStream getCoverImageStream(String imageName) {
+        try {
+            log.info("Attempting to load cover image: {}", imageName);
+            return new ClassPathResource(imageName).getInputStream();
+        } catch (Exception e) {
+            log.warn("Cover image {} not found or inaccessible. Falling back to cover_1.png", imageName);
+            try {
+                return new ClassPathResource("static/images/cover_1.png").getInputStream();
+            } catch (Exception ex) {
+                throw new RuntimeException("Fatal Error: Default cover image (cover_1.png) is missing in resources!");
+            }
+        }
     }
 
     // 파일 복호화 및 다운로드 (DB 저장된 파일 대상)
@@ -126,7 +135,7 @@ public class FileEncryptionService {
         Path filePath = Paths.get(metadata.getFilePath());
         byte[] stegoImageBytes = Files.readAllBytes(filePath);
 
-        // 2. [스테가노그래피] 이미지에서 암호화된 바이너리 추출 [Steganography Logic]
+        // 2. [스테가노그래피] 이미지에서 암호화된 바이너리 추출
         byte[] encryptedFile = steganographyUtil.extractData(stegoImageBytes);
 
         // 3. 키 복호화

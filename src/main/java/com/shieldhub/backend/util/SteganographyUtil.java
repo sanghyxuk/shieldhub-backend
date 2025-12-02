@@ -1,28 +1,39 @@
 package com.shieldhub.backend.util;
 
 import org.springframework.stereotype.Component;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
+import java.io.InputStream; // [변경] File 대신 InputStream 사용
 import java.io.IOException;
 
 @Component
 public class SteganographyUtil {
 
-    // [숨기기] 암호화된 데이터를 이미지 안에 심기
-    public byte[] embedData(File coverImageFile, byte[] secretData) throws Exception {
-        BufferedImage image = ImageIO.read(coverImageFile);
+    /**
+     * [숨기기] 암호화된 데이터를 이미지 안에 심기
+     * 변경점: 배포 환경(JAR) 호환을 위해 File 대신 InputStream을 받도록 수정함
+     */
+    public byte[] embedData(InputStream coverImageStream, byte[] secretData) throws Exception {
+        // [변경] InputStream에서 이미지 읽기
+        BufferedImage image = ImageIO.read(coverImageStream);
+
+        if (image == null) {
+            throw new RuntimeException("커버 이미지를 읽을 수 없습니다. 이미지 형식이 잘못되었거나 손상되었습니다.");
+        }
+
         int width = image.getWidth();
         int height = image.getHeight();
 
         // 용량 체크 (헤더 4바이트 + 데이터 길이) * 8비트
-        if ((secretData.length + 4) * 8 > width * height * 3) {
-            throw new RuntimeException("파일이 너무 커서 이 이미지에 숨길 수 없습니다. 더 큰 이미지를 사용하세요.");
+        // 1픽셀(3채널)에 3비트를 숨길 수 있음
+        if ((long)(secretData.length + 4) * 8 > (long)width * height * 3) {
+            throw new RuntimeException("파일이 너무 커서 이 이미지에 숨길 수 없습니다. 더 큰 해상도의 이미지를 사용하세요.");
         }
 
-        // 데이터 앞에 '길이 정보(4바이트)'를 먼저 붙임 (그래야 꺼낼 때 어디까지 읽을지 앎)
+        // 데이터 앞에 '길이 정보(4바이트)'를 먼저 붙임
         byte[] dataToEmbed = new byte[secretData.length + 4];
         int len = secretData.length;
         dataToEmbed[0] = (byte) ((len >> 24) & 0xFF);
@@ -68,10 +79,16 @@ public class SteganographyUtil {
         return baos.toByteArray();
     }
 
-    // [꺼내기] 이미지에서 암호화된 데이터 추출
+    /**
+     * [꺼내기] 이미지에서 암호화된 데이터 추출
+     */
     public byte[] extractData(byte[] imageBytes) throws Exception {
         ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
         BufferedImage image = ImageIO.read(bais);
+
+        if (image == null) {
+            throw new RuntimeException("이미지 데이터를 읽을 수 없습니다.");
+        }
 
         // 1. 먼저 데이터 길이(4바이트)를 추출
         byte[] lenBytes = new byte[4];
@@ -81,6 +98,11 @@ public class SteganographyUtil {
                 ((lenBytes[1] & 0xFF) << 16) |
                 ((lenBytes[2] & 0xFF) << 8) |
                 (lenBytes[3] & 0xFF);
+
+        // 길이가 비정상적으로 크거나 음수면 잘못된 이미지일 가능성 높음
+        if (length < 0 || length > image.getWidth() * image.getHeight() * 3 / 8) {
+            throw new RuntimeException("유효하지 않은 데이터 길이입니다. 스테가노그래피 이미지가 아니거나 손상되었습니다.");
+        }
 
         // 2. 길이만큼 실제 데이터 추출
         byte[] data = new byte[length];
