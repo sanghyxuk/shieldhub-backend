@@ -1,16 +1,20 @@
 server:
-  # Render가 할당하는 포트(PORT)를 사용하고, 없으면 8080 사용
   port: ${PORT:8080}
 
 spring:
   application:
     name: shieldhub-backend
 
-  # [메일 설정] Brevo SMTP (2525 포트)
+  servlet:
+    multipart:
+      max-file-size: 500MB      # 파일 하나당 최대 크기
+      max-request-size: 500MB   # 요청 전체 최대 크기
+      enabled: true
+
   mail:
     host: smtp-relay.brevo.com
-    port: 2525                     # 2525번 포트 유지
-    username: 9c3595001@smtp-brevo.com  # Brevo 아이디 (수정 완료)
+    port: 2525
+    username: 9c3595001@smtp-brevo.com
     password: ${MAIL_PASSWORD}
     properties:
       mail:
@@ -22,8 +26,6 @@ spring:
           connectiontimeout: 10000
           timeout: 10000
           writetimeout: 10000
-
-  # [주의] 여기에 app: 설정을 넣으면 안 됩니다! (삭제함)
 
   # [DB 설정]
   datasource:
@@ -58,10 +60,9 @@ logging:
     com.shieldhub.backend: DEBUG
     org.springframework.security: DEBUG
 
-# [커스텀 설정] ★ 여기가 진짜입니다! ★
+# [커스텀 설정]
 app:
   mail:
-    # [수정 완료] Brevo 가입 이메일(Gmail)로 변경됨
     from: pyosang0919@gmail.com
     from-name: ShieldHub Security
 

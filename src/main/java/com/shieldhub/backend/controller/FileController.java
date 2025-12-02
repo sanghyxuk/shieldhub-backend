@@ -31,7 +31,7 @@ public class FileController {
     private final FileMetadataRepository fileMetadataRepository;
     private final UserRepository userRepository;
 
-    // 파일 업로드 및 암호화
+    // 1. 파일 업로드 및 암호화 (스테가노그래피 적용)
     @PostMapping("/encrypt")
     public ResponseEntity<?> encryptFile(
             @RequestParam("file") MultipartFile file,
@@ -48,11 +48,12 @@ public class FileController {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ZipOutputStream zos = new ZipOutputStream(baos);
 
-            // 1. 암호화된 파일 추가
+            // 1. 암호화된 파일(이미지) 추가
+            // [수정됨] 서비스에서 이미지를 반환하므로 .enc를 붙이지 않고 파일명 그대로 사용 (.png)
             byte[] encryptedFileBytes = (byte[]) result.get("encryptedFile");
-            String fileName = (String) result.get("fileName");
+            String fileName = (String) result.get("fileName"); // 예: "UUID.png"
 
-            ZipEntry fileEntry = new ZipEntry(fileName + ".enc");
+            ZipEntry fileEntry = new ZipEntry(fileName);
             zos.putNextEntry(fileEntry);
             zos.write(encryptedFileBytes);
             zos.closeEntry();
@@ -71,9 +72,11 @@ public class FileController {
                     "File Information\n" +
                             "================\n" +
                             "Original File: %s\n" +
+                            "Saved Image: %s\n" +  // 저장된 이미지 파일명 표시
                             "File ID: %s\n" +
                             "SHA-256 Hash: %s\n" +
                             "Upload Date: %s\n",
+                    file.getOriginalFilename(),
                     fileName,
                     result.get("fileId"),
                     result.get("sha256Hash"),
@@ -92,7 +95,7 @@ public class FileController {
             ByteArrayResource resource = new ByteArrayResource(zipBytes);
 
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "_encrypted.zip\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"secure_package.zip\"")
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
                     .contentLength(zipBytes.length)
                     .body(resource);
@@ -106,10 +109,10 @@ public class FileController {
         }
     }
 
-    // 파일 복호화 (파일 업로드 방식)
+    // 2. 파일 복호화 (파일 업로드 방식)
     @PostMapping("/decrypt-upload")
     public ResponseEntity<?> decryptUploadedFile(
-            @RequestParam("encryptedFile") MultipartFile encryptedFile,
+            @RequestParam("encryptedFile") MultipartFile encryptedFile, // 클라이언트는 이미지를 업로드함
             @RequestParam("keyFile") MultipartFile keyFile,
             @RequestParam("originalFileName") String originalFileName,
             Authentication authentication) {
@@ -124,7 +127,7 @@ public class FileController {
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("키 파일 형식이 올바르지 않습니다"));
 
-            // 복호화
+            // 복호화 (이미지 바이트와 키 전달)
             Map<String, Object> result = fileEncryptionService.decryptUploadedFile(
                     encryptedFile.getBytes(),
                     encryptedKey.trim()
@@ -148,7 +151,7 @@ public class FileController {
         }
     }
 
-    // 파일 복호화 (DB 저장 방식)
+    // 3. 파일 복호화 (DB 저장 방식)
     @PostMapping("/decrypt/{fileId}")
     public ResponseEntity<?> decryptFile(
             @PathVariable Integer fileId,
@@ -173,7 +176,7 @@ public class FileController {
             Map<String, Object> result = fileEncryptionService.decryptFile(fileId, encryptedKey);
 
             byte[] fileData = (byte[]) result.get("fileData");
-            String fileName = (String) result.get("fileName");
+            String fileName = (String) result.get("fileName"); // 원본 파일명
 
             ByteArrayResource resource = new ByteArrayResource(fileData);
 
@@ -192,7 +195,7 @@ public class FileController {
         }
     }
 
-    // 사용자의 파일 목록 조회
+    // 4. 사용자의 파일 목록 조회
     @GetMapping("/list")
     public ResponseEntity<?> getFileList(Authentication authentication) {
         try {
