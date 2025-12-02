@@ -4,10 +4,13 @@ import com.shieldhub.backend.entity.FileHistory;
 import com.shieldhub.backend.entity.FileMetadata;
 import com.shieldhub.backend.repository.FileHistoryRepository;
 import com.shieldhub.backend.repository.FileMetadataRepository;
-import com.shieldhub.backend.util.ChaosKeyGenerator; // [추가됨]
+import com.shieldhub.backend.util.ChaosKeyGenerator;
 import com.shieldhub.backend.util.EncryptionUtil;
+import com.shieldhub.backend.util.SteganographyUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -29,70 +33,85 @@ public class FileEncryptionService {
     private final FileMetadataRepository fileMetadataRepository;
     private final FileHistoryRepository fileHistoryRepository;
     private final EncryptionUtil encryptionUtil;
-    private final ChaosKeyGenerator chaosKeyGenerator; // [추가됨] 카오스 키 생성기 주입
+    private final ChaosKeyGenerator chaosKeyGenerator; // 카오스 키 생성기
+    private final SteganographyUtil steganographyUtil; // 스테가노그래피 유틸
 
     @Value("${app.file.upload-dir}")
     private String uploadDir;
 
-    // 파일 암호화 및 저장
+    // 파일 암호화 및 저장 (Chaos Encryption + Random Steganography)
     public Map<String, Object> encryptAndSaveFile(MultipartFile file, Integer userId) throws Exception {
-        // 원본 파일 데이터
+        // 1. 원본 파일 데이터 읽기
         byte[] fileData = file.getBytes();
 
-        // SHA-256 해시 생성 (원본 파일 무결성 검증용)
+        // 2. SHA-256 해시 생성 (무결성 검증용)
         String sha256Hash = encryptionUtil.generateSHA256(fileData);
 
-        /* * [수정됨] 카오스 이론(로지스틱 맵)을 적용한 키 생성
-         * 나비 효과(Butterfly Effect): 초기 입력값(Seed)이 아주 미세하게만 달라도 결과 키가 완전히 달라짐
-         * Seed 조합: 원본파일명 + 사용자ID + 현재시간(나노초) -> 예측 불가능성 극대화
-         */
+        // 3. 카오스 이론(로지스틱 맵)을 적용한 키 생성 [Chaos Logic]
+        // 시드: 원본파일명 + 사용자ID + 나노초 (예측 불가능성 극대화)
         String seedData = file.getOriginalFilename() + userId + System.nanoTime();
         SecretKey fileKey = chaosKeyGenerator.generateChaosKey(seedData);
-        // 기존 코드: SecretKey fileKey = encryptionUtil.generateAESKey(); (삭제됨)
 
-        // 파일 암호화 (AES-256 GCM) - 키는 카오스 이론으로 생성된 것을 사용
-        byte[] encryptedFile = encryptionUtil.encryptFile(fileData, fileKey);
+        // 4. 파일 암호화 (AES-256 GCM)
+        byte[] encryptedBytes = encryptionUtil.encryptFile(fileData, fileKey);
 
-        // 암호화된 파일 저장 경로 설정
-        String uniqueFileName = UUID.randomUUID().toString() + ".enc";
+        // 5. [스테가노그래피] 랜덤 커버 이미지 선택 로직 [Random Logic]
+        // cover_1.png ~ cover_5.png 중 하나를 무작위로 선택
+        int randomNum = (int) (Math.random() * 5) + 1;
+        String coverImageName = "static/images/cover_" + randomNum + ".png";
+
+        File coverImage;
+        try {
+            coverImage = new ClassPathResource(coverImageName).getFile();
+            log.info("Selected Cover Image: {}", coverImageName);
+        } catch (Exception e) {
+            log.warn("Random cover image not found, falling back to cover_1.png");
+            // 파일이 없거나 오류 발생 시 기본 이미지 사용 (안전장치)
+            coverImage = new ClassPathResource("static/images/cover_1.png").getFile();
+        }
+
+        // 6. 이미지 속에 암호화된 데이터 숨기기
+        byte[] stegoImageBytes = steganographyUtil.embedData(coverImage, encryptedBytes);
+
+        // 7. 암호화된 이미지 저장 (.enc 대신 .png로 저장)
+        // 사용자는 겉보기에 평범한 이미지를 다운로드하게 됨
+        String uniqueFileName = UUID.randomUUID().toString() + ".png";
         Path filePath = Paths.get(uploadDir, uniqueFileName);
 
-        // 디렉토리 생성 (없으면 생성)
+        // 디렉토리 생성
         Files.createDirectories(filePath.getParent());
 
-        // 파일 저장
-        Files.write(filePath, encryptedFile);
+        // 이미지를 파일 시스템에 쓰기
+        Files.write(filePath, stegoImageBytes);
 
-        // 메타데이터 DB 저장
+        // 8. 메타데이터 DB 저장
         FileMetadata metadata = new FileMetadata();
         metadata.setFileName(file.getOriginalFilename());
         metadata.setUserId(userId);
-        metadata.setFilePath(filePath.toString());
+        metadata.setFilePath(filePath.toString()); // 저장된 PNG 경로
         metadata.setFileSize(file.getSize());
         metadata.setSha256Hash(sha256Hash);
 
         FileMetadata savedMetadata = fileMetadataRepository.save(metadata);
 
-        // 이력(History) 저장
+        // 9. 이력 저장
         FileHistory history = new FileHistory();
         history.setFileId(savedMetadata.getFileId());
         history.setActionType(FileHistory.ActionType.ENCRYPTION);
         fileHistoryRepository.save(history);
 
-        // 생성된 카오스 키를 마스터키로 한 번 더 암호화 (사용자 제공용)
+        // 10. 키 암호화 (마스터키 이용)
         String encryptedKey = encryptionUtil.encryptKey(fileKey);
 
-        // 응답 데이터 구성
+        // 11. 응답 데이터 구성
         Map<String, Object> response = new HashMap<>();
         response.put("fileId", savedMetadata.getFileId());
-        response.put("fileName", savedMetadata.getFileName());
+        response.put("fileName", uniqueFileName); // 저장된 이미지 이름
         response.put("encryptedKey", encryptedKey);
-        response.put("encryptedFile", encryptedFile);
+        // 프론트엔드로 전달되는 데이터는 '숨겨진 데이터가 있는 이미지' 입니다.
+        response.put("encryptedFile", stegoImageBytes);
         response.put("sha256Hash", sha256Hash);
         response.put("fileSize", savedMetadata.getFileSize());
-
-        // (선택사항) 응답 데이터에 암호화된 파일 바이트 포함 여부는 프론트엔드 처리 방식에 따라 결정
-        // response.put("encryptedFile", encryptedFile);
 
         return response;
     }
@@ -103,17 +122,20 @@ public class FileEncryptionService {
         FileMetadata metadata = fileMetadataRepository.findById(fileId)
                 .orElseThrow(() -> new RuntimeException("파일을 찾을 수 없습니다"));
 
-        // 암호화된 파일 읽기
+        // 1. 저장된 스테가노그래피 이미지(.png) 읽기
         Path filePath = Paths.get(metadata.getFilePath());
-        byte[] encryptedFile = Files.readAllBytes(filePath);
+        byte[] stegoImageBytes = Files.readAllBytes(filePath);
 
-        // 키 복호화 (마스터키로 잠긴 키를 풂 -> 원본 카오스 키 획득)
+        // 2. [스테가노그래피] 이미지에서 암호화된 바이너리 추출 [Steganography Logic]
+        byte[] encryptedFile = steganographyUtil.extractData(stegoImageBytes);
+
+        // 3. 키 복호화
         SecretKey fileKey = encryptionUtil.decryptKey(encryptedKeyString);
 
-        // 파일 복호화
+        // 4. 파일 복호화 (AES-256 with Chaos Key)
         byte[] decryptedFile = encryptionUtil.decryptFile(encryptedFile, fileKey);
 
-        // 무결성 검증 (해시값 비교)
+        // 5. 무결성 검증
         String sha256Hash = encryptionUtil.generateSHA256(decryptedFile);
         if (!sha256Hash.equals(metadata.getSha256Hash())) {
             throw new RuntimeException("파일 무결성 검증 실패: 파일이 변조되었습니다.");
@@ -134,12 +156,15 @@ public class FileEncryptionService {
         return response;
     }
 
-    // 업로드된 암호화 파일 복호화 (DB 정보 없이 키 파일과 암호화 파일만으로 복구)
-    public Map<String, Object> decryptUploadedFile(byte[] encryptedFile, String encryptedKeyString) throws Exception {
-        // 키 복호화
+    // 업로드된 암호화 파일(이미지) 복호화 (DB 정보 없이)
+    public Map<String, Object> decryptUploadedFile(byte[] stegoImageFile, String encryptedKeyString) throws Exception {
+        // 1. [스테가노그래피] 업로드된 이미지에서 암호화 데이터 추출
+        byte[] encryptedFile = steganographyUtil.extractData(stegoImageFile);
+
+        // 2. 키 복호화
         SecretKey fileKey = encryptionUtil.decryptKey(encryptedKeyString);
 
-        // 파일 복호화
+        // 3. 파일 복호화
         byte[] decryptedFile = encryptionUtil.decryptFile(encryptedFile, fileKey);
 
         // 응답 데이터
